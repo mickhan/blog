@@ -7,7 +7,7 @@ tags:
     - 测试
 ---
 
-真正开始关注测试这个话题，是从读[《测试驱动开发》][1]开始的。这篇博客的题目打个问号，是因为我自己对测试的理解还很浅薄，只是记录下总结和思考吧。
+从读[《测试驱动开发》][1]开始，我才真正关注测试这个话题。之所以题目打了个问号，是因为我对测试的理解还很浅薄，不敢说能解答这个疑问，只是记录下自己的总结和思考吧。
 
 # unittest
 
@@ -70,12 +70,6 @@ def mocked_requests_get(*args, **kwargs):
 
 
 class AlertTestCase(unittest.TestCase):
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     @mock.patch('requests.post', side_effect=mocked_requests_get)
     def testSendMail(self, mock_post):
         mail = Mail('foo@bar.com', 'subject', 'content')
@@ -94,6 +88,35 @@ class AlertTestCase(unittest.TestCase):
 
 ### redis
 
+github上有人开源了一个[mockredis][5]库，patch redis.Redis或redis.StrictRedis之后，就可以在不安装redis-server的情况下调用redis-py。
+
+{% highlight python %}
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import unittest
+import redis
+import mock
+from mockredis import mock_strict_redis_client
+from app.models.queue import Queue
+
+
+class QueueTestCase(unittest.TestCase):
+    @mock.patch('redis.StrictRedis', mock_strict_redis_client)
+    def testQueueGet(self):
+        rd = redis.StrictRedis() # 注意实例化的时候不带参数
+        local = arrow.now()
+        rd.lpush("opst_msg_queue", "foo")
+        rd.lpush("opst_msg_queue", "bar")
+        q = Queue(rd) # 算是依赖注入？改变redis的行为，不需要修改Queue。
+        self.assertEqual(
+            q.pop(),
+            "foo")
+
+if __name__ == "__main__":
+    unittest.main()
+{% endhighlight %}
+
 # nose
 
 nose增加了一些特别方便的功能，可以搜索代码目录下的test文件，自动执行测试。有待进一步研究。
@@ -106,3 +129,4 @@ flask使用了这个模块来做测试，看起来很简洁，有待研究。
 [2]: http://stackoverflow.com/questions/15753390/python-mock-requests-and-the-response "mocking - python mock Requests and the response - Stack Overflow"
 [3]: http://cramer.io/2014/05/20/mocking-requests-with-responses "Mocking Python Requests with Responses - David Cramer's Blog"
 [4]: https://docs.python.org/2/library/unittest.html "25.3. unittest — Unit testing framework — Python 2.7.12 documentation"
+[5]: https://github.com/locationlabs/mockredis "locationlabs/mockredis: mock for redis-py"
